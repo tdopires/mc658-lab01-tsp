@@ -163,18 +163,11 @@ bool bt(TSP_Data &tsp, int maxTime)
 
 	clock_t now = clock();
 	double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
-	cerr << endl;
-	cerr << "greedyTime : " << elapsed_time;
-	cerr << endl;
 
 	bool optimalSolution = false;
 	bool timedOut = false;
 
 	tsp_bt(tsp, vector<Node>(), maxTime, beginExec, timedOut, optimalSolution);
-
-	cerr << endl;
-	cerr << "timedOut : " << timedOut << " | optimalSolution : " << optimalSolution << "  ";
-	cerr << endl;
 
 	return optimalSolution;
 
