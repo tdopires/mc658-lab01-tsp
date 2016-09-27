@@ -320,15 +320,16 @@ bool checkSol(TSP_Data &tsp)
 					// cerr << "  OK  x[e]: " << x[e];
 				}
 				else{  // It is already in the solution
+					// cerr << "  FAIL x[e]: " << x[e];
 					return false;
 				}
 				
 				if( !y[ad] ){  // It is not yet in the solution
 					y[ad] = true;  // The adjacent node is now verified by the solution
-					// cerr << "  y[ad]: " << y[ad] << endl;
-					
+					// cerr << "  OK  y[n]: " << y[ad] << endl;
 				}
 				else{  // It is already in the solution
+					// cerr << "  FAIL  y[n]: " << y[ad] << endl;
 					return false;
 				}
 			}

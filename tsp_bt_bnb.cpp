@@ -17,138 +17,86 @@
 #include "mygraphlib.h"
 #include "tsp_bt_bnb.h"
 
-bool is_circuit(TSP_Data &tsp, vector<Node> r, double &r_weight) {
-	// Number of nodes
-	if(tsp.NNodes != (int)r.size()){
-		return false;
-	}
-
-	// Maps a boolean y to each vertex of the graph g. Initialized as false.
-	NodeBoolMap y(tsp.g);
-	for(NodeIt o(tsp.g); o!=INVALID; ++o){
-		y[o] = false;
-	}
-	
-	// Maps a boolean x to each edge of the graph g. Initialized as false.
-	EdgeBoolMap x(tsp.g);
-	for(EdgeIt e(tsp.g); e!=INVALID; ++e){  // We set every edge out of the the solution
-		x[e] = false;
-	}
-	
-	int nedges = 0;
-	
-	Node ni = INVALID;
-	Node nj = INVALID;
-	Node ad = INVALID;
-	
-	// Lets check each edge inferred by the sequence of nodes.
-	for(auto i = r.begin(); i != r.end(); ++i){
-		ni = *i;
-		// cerr << endl;
-		// cerr << "ni: " << tsp.vname[ni] << endl;
-		// cerr << "  y[ni]: " << y[ni] << endl;
-		
-		// If ni is the last element, lets examine the edge (last,first).
-		if( next(i) == r.end()){
-			nj = *(r.begin());
-		}
-		else{
-			nj = *next(i);
-		}
-		
-		// cerr << "nj: " << tsp.vname[nj] << endl;
-		// cerr << "  y[nj]: " << y[nj] << endl;
-		
-		// Check if nj is in the adjacents of ni, i.e., if exists edge (ni,nj) in the graph. We have to verify all the adjacent edges, since we are in a kind of lists of adjacency structure.
-		for(IncEdgeIt e(tsp.g, ni); e != INVALID; ++e){
-			ad = tsp.g.v(e);
-			if( ad == ni ){
-				ad = tsp.g.u(e);
-			}
-			// cerr << "  ad: " << tsp.vname[ad] << endl;
-			
-			// cerr << "  x[e]: " << x[e] << "  y[ad]: " << y[ad] << endl;
-			
-			// If there is an adjacent of ni, which equals nj.
-			// Also, it verifies subcycles
-			if( ad == nj ){
-				if( !x[e] ){  // It is not yet in the solution
-					x[e] = true;   // The edge is now verified by the solution
-					r_weight += tsp.weight[e];
-					nedges++;
-					// cerr << "  OK  x[e]: " << x[e];
-				}
-				else{  // It is already in the solution
-					return false;
-				}
-				
-				if( !y[ad] ){  // It is not yet in the solution
-					y[ad] = true;  // The adjacent node is now verified by the solution
-					// cerr << "  y[ad]: " << y[ad] << endl;
-					
-				}
-				else{  // It is already in the solution
-					return false;
-				}
-			}
-		}
-	}
-	
-	// cerr << "nedges: " << nedges << endl;
-	// cerr << "tsp.NNodes: " << tsp.NNodes << endl;	
-	
-	// Number of edges
-	if(nedges != tsp.NNodes){
-		return false;
-	}
-
-	return true;
-}
-
 bool vector_contains(vector<Node> r, Node n) {
-	Node ni = INVALID;
-	for(auto i = r.begin(); i != r.end(); ++i){
-		ni = *i;
-		if (ni == n) {
+	for(int i = 0; i < r.size(); i++){
+		if (r[i] == n) {
 			return true;
 		}
 	}
 	return false;
 }
 
-void tsp_bt(TSP_Data &tsp, vector<Node> r, int maxTime, clock_t beginExec, bool &timedOut, bool &optimalSolution) {
+void tsp_bt(TSP_Data &tsp, vector<Node> circuit, double &costSoFar, int maxTime, clock_t beginExec, bool &timedOut) {
 	clock_t now = clock();
 	double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
 	if (elapsed_time > maxTime) {
 		timedOut = true;
 		return;
 	}
+			
+	int n = (int) circuit.size();
+	if (tsp.NNodes == n) { // last vertex of circuit
+		double distanceFromLastToFirst = 666666;
 
-	double new_r_weight = 0.0;
+		Node lastNode = circuit.back();
+		Node firstNode = circuit.front();
+		for (IncEdgeIt e(tsp.g, lastNode); e!=INVALID; ++e) {
+			Node ad = tsp.g.v(e);
+			if( ad == lastNode ){
+				ad = tsp.g.u(e);
+			}
+			if(ad == firstNode ){
+				distanceFromLastToFirst = tsp.weight[e];
+			}
+		}
+		costSoFar += distanceFromLastToFirst;
 
-	bool r_is_circuit = is_circuit(tsp, r, new_r_weight);
+		// cerr << endl;
+		// cerr << " new circuit: " << costSoFar << " tsp.BestCircuitValue " << tsp.BestCircuitValue;
 
-	if(r_is_circuit){
-		tsp.BestCircuit = r;
-		tsp.BestCircuitValue = new_r_weight;
-		return;
-	}
+		if (costSoFar < tsp.BestCircuitValue) {
+			tsp.BestCircuitValue = costSoFar;
+			tsp.BestCircuit = circuit;
+		}
+	} else {
+		Node lastNode = circuit.back();
 
-	if(new_r_weight >= tsp.BestCircuitValue){
-		r.pop_back();
-		return;
-	}
+		// cerr << endl;
+		// cerr << " lastNode: " << tsp.vname[lastNode];
+		
+		for (IncEdgeIt e(tsp.g, lastNode); e!=INVALID; ++e) {
+			Node ad = tsp.g.v(e);
+			if( ad == lastNode ){
+				ad = tsp.g.u(e);
+			}
+			if( !vector_contains(circuit, ad) ){
+				if ((costSoFar + tsp.weight[e]) < tsp.BestCircuitValue) {
+					// cerr << " | ad: " << tsp.vname[ad];
 
-	for(NodeIt v(tsp.g); v != INVALID; ++v){
-		if(!vector_contains(r, v) && !timedOut) {
-			r.push_back(v);
-			bool x = false;
-			tsp_bt(tsp, r, maxTime, beginExec, timedOut, x);
+					circuit.push_back(ad);
+					costSoFar += tsp.weight[e];
+					tsp_bt(tsp, circuit, costSoFar, maxTime, beginExec, timedOut);
+					circuit.pop_back();
+					costSoFar -= tsp.weight[e];
+				}
+			}
 		}
 	}
-	if (!timedOut) {
-		optimalSolution = true;	
-	}
+
+// 1. n ← length[A] // number of elements in the array A
+// 2. if l = n
+// 3.   then minCost ← min(minCost, lengthSoFar + distance[A[n], A[1]])
+// 4. else 
+	  //for i ← l + 1 to n do
+// 5.     Swap A[l + 1] and A[i] // select A[i] as the next city
+// 6.     newLength ← lengthSoFar + distance[A[l], A[l + 1]]
+// 7.     if newLength > minCost // this will never be a better solution
+// 8.       then skip // prune
+// 9.     else minCost ←
+// 10.      min(minCost, TSP Backtrack(A, l + 1, newLength, minCost))
+// 11.    Swap A[l + 1] and A[i] // undo the selection
+// 12.return minCost
+
 }
 
 bool bt(TSP_Data &tsp, int maxTime)
@@ -158,18 +106,22 @@ bool bt(TSP_Data &tsp, int maxTime)
  ******************************************************************************/
 {
 	clock_t beginExec = clock();
-
-	greedy(tsp, maxTime);
-
-	clock_t now = clock();
-	double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
-
-	bool optimalSolution = false;
 	bool timedOut = false;
 
-	tsp_bt(tsp, vector<Node>(), maxTime, beginExec, timedOut, optimalSolution);
+	vector<Node> circuit = vector<Node>();
+	Node firstNode = INVALID;
+	string firstNodeStr = ""; 
+	for (NodeIt v(tsp.g); v!=INVALID; ++v) {
+		if (firstNodeStr.empty() || firstNodeStr > tsp.vname[v]) {
+			firstNodeStr = tsp.vname[v];
+			firstNode = v;
+		}
+	}
+	circuit.push_back(firstNode);
+	double c = 0.0;
+	tsp_bt(tsp, circuit, c, maxTime, beginExec, timedOut);
 
-	return optimalSolution;
+	return !timedOut;
 
 }
 
