@@ -1,0 +1,7 @@
+Algorithm         : BACKTRACKING
+Instance          : in/gr_kinder4
+ElapsedTime       : 6.5e-05s
+TimeLimit         : 30s
+Guaranteed Optimal: Yes
+BestCircuitValue  : 18
+BestCircuit       : 4 3 2 1

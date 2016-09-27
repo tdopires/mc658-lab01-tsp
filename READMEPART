@@ -1,0 +1,159 @@
+------------------------------------------------------------------------
+
+In this directory, you can find many programs using the LEMON Library and the
+the GUROBI integer linear programming solver. 
+The LEMON Library can be found in the link: http://lemon.cs.elte.hu/
+The GUROBI solver is free for educational institutions for academic/research
+purposes.
+
+Most probably, these routines/programs will change a lot in the near future.
+So, be aware that this is the first version available in the internet. Hope 
+stable versions will be available in the future.
+
+Send comments/corrections to Flavio K. Miyazawa.
+
+========================================================================
+------------------------------------------------------------------------
+Step 1. Install the GUROBI Solver
+        http://www.gurobi.com/
+	(see the file INSTALL_GUROBI, in portuguese)
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+Step 2. Instalation of LEMON package
+------------------------------------------------------------------------
+If you want to install LEMON package as root, go to Step 2.1.
+Otherwise, if you want to install LEMON in the up level folder, go to Step 2.2.
+
+Step 2.1. Download the LEMON package from the link
+
+    http://lemon.cs.elte.hu/
+
+    and install the package in the system. To build LEMON, you need to give
+    the following commands in the LEMON directory: 
+
+    ./configure 
+    make
+    sudo make install
+
+Step 2.2 If you do not have permission to install as root, you can install
+    the package in the up level folder using the script
+
+    Install-Lemon-in-up-level-folder
+
+    that installs the lemon package in the up level folder.
+    To this end, you must have write permission in the up level folder.
+    The script Install-Lemon-in-up-level-folder creates a uplevel folder
+    called "lemon", download the file lemon-1.3.1.tar.gz and install the
+    lemon package version 1.3.1 inside folder "lemon".
+
+    You can also install LEMON in another folder. In this case, you must
+    change the PATH in the Makefile (see Step 5).
+
+------------------------------------------------------------------------
+Step 3. Correcting the pdf reader.
+------------------------------------------------------------------------
+As some of the programs in this directory uses a pdf reader, open the file
+thirdpartprograms.h, and change/comment the name of the pdf reader used in your
+system. For example:
+
+#define PDF_VIEWER "xpdf"  // To open a pdf file in Linux
+or
+#define PDF_VIEWER "open"  // To open a pdf file in Mac OS X
+
+------------------------------------------------------------------------
+Step 4. Installing the graphviz package used to visualize graphs
+------------------------------------------------------------------------
+Another package used to view graphs, is the graphviz package that can be
+obtained from the link
+http://www.graphviz.org/
+When this package is installed, you can use two programs that are used
+to transform a graph in the .dot format to a pdf format. These are the
+"dot" and the "neato" programs.
+
+------------------------------------------------------------------------
+Step 5. Building the executable files in this directory.
+------------------------------------------------------------------------
+
+First, rename the file
+Makefile-with-Lemon-installed (if the Lemon package is installed in the system)
+or
+Makefile-with-Lemon-installed-in-up-level-folder (if the Lemon package
+was installed using the script Install-Lemon-in-subfolder, that can be found in
+the up level folder) to Makefile
+
+If GUROBI is not installed in a standard folder, you have to change the Makefile.
+GUROBI_DIR = /Library/gurobi$(VERSION)/$(PLATFORM)
+with the GUROBI directory used in your instalation.
+
+The makefile uses a command "ar" to generate a lib called "mylib.a" from
+the obj files: mygraphlib.o geompack.o myutils.o
+You can use other command to generate such lib or you can change the makefile to 
+use the obj files  mygraphlib.o geompack.o myutils.o  directly
+without doing the lib file.
+
+Then, you have to do the following command:
+
+make
+
+The executable files have suffix ".e"
+
+------------------------------------------------------------------------
+Step 5. Testing the programs
+------------------------------------------------------------------------
+To test any of the following programs, you only need to run the program, without
+any parameters. To see what they do, see the corresponding .cpp file.
+
+ex_knapsack.e            (this program solves a random generated knapsack problem)
+ex_fractional_packing.e  (Solves LP formulation of a packing problem (non-integer))
+ex_tsp_gurobi.e          (Solves TSP on undirected graphs)
+
+
+The program ex_tsp_gurobi.e  has a filename as argument. For example,
+
+./ex_tsp_gurobi.e gr_berlin52          (52 places in the city of Berlin)
+./ex_tsp_gurobi.e gr_usa48             (48 cities in the US)
+./ex_tsp_gurobi.e gr_ulysses16
+
+Files begining with "gr_" and not ending with ".steiner" are graph files.
+The first number, say N, in the first line of such a file, is the number of vertices.
+
+If this number is followed by a -1, you have an euclidean graph. In this case,
+in the next N lines you can find a tuple "v, px, py" for each vertex v
+(e.g. gr_100). The position (px,py) is the coordinate of the vertex v in the
+plane. The graph is complete and distances are calculated by the euclidean
+distance.
+
+If after the number of vertices N you find a number M different of -1, then you
+have a graph given by nodes and edges. The next N lines have the name of the
+vertices (e.g. gr_50). Optionally, after the name of each vertex, you may give
+the position px and py of the corresponding node (e.g. gr_att48). And after the
+vertices, the next M lines you can find a tuple "u v weight" that is an edge
+that connects vertex u and vertex v and has weight "weight".
+
+Since this program is for didactical purposes it is very limited and is not
+optimized.
+
+
+Files begining with "gr_" and ending with ".steiner" are graph files for the
+Steiner problem. In the first line of the file, we have the graph file name and the
+number of terminals, which are listed in the subsequent lines.
+The program steiner-directed has a filename as argument (the first line. For example,
+
+./ex_steiner-directed.e gr_berlin52.steiner  (52 places in the city of Berlin)
+./ex_steiner-directed.e gr_att48.steiner     (48 cities in the US)
+
+In the execution of "ex_steiner-directed.e gr_berlin52.steiner"
+the program opens the file "gr_berlin52.steiner" and, from the first line,
+obtains the graph file name (in this case, we have "gr_berlin52") and the number
+of terminals. So, for this problem, you need both files,
+the file "gr_berlin52" and the file "gr_berlin52.steiner".
+
+
+There is a script for bash, test_ex, that test most of the programs. 
+------------------------------------------------------------------------
+
+
+
+
+
