@@ -26,17 +26,35 @@ bool vector_contains(vector<Node> r, Node n) {
 	return false;
 }
 
-void tsp_bt(TSP_Data &tsp, vector<Node> circuit, double &costSoFar, int maxTime, clock_t beginExec, bool &timedOut) {
+
+bool is_EdgeBoolMap_true(TSP_Data &tsp, EdgeBoolMap &x) {
+	for(EdgeIt o(tsp.g); o!=INVALID; ++o){
+		if (!x[o]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool is_NodeBoolMap_true(TSP_Data &tsp, NodeBoolMap &y) {
+	for(NodeIt o(tsp.g); o!=INVALID; ++o){
+		if (!y[o]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void tsp_bt(TSP_Data &tsp, vector<Node> circuit, double &circuitWeightSoFar, double lastWeightAdded, int maxTime, clock_t beginExec, bool &timedOut) {
 	clock_t now = clock();
 	double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
 	if (elapsed_time > maxTime) {
 		timedOut = true;
 		return;
 	}
-			
-	int n = (int) circuit.size();
-	if (tsp.NNodes == n) { // last vertex of circuit
-		double distanceFromLastToFirst = 666666;
+
+	if((int)circuit.size() == tsp.NNodes){
+		double weightFromLastToFirst = 666666.6;
 
 		Node lastNode = circuit.back();
 		Node firstNode = circuit.front();
@@ -46,42 +64,37 @@ void tsp_bt(TSP_Data &tsp, vector<Node> circuit, double &costSoFar, int maxTime,
 				ad = tsp.g.u(e);
 			}
 			if(ad == firstNode ){
-				distanceFromLastToFirst = tsp.weight[e];
+				weightFromLastToFirst = tsp.weight[e];
 			}
 		}
-		costSoFar += distanceFromLastToFirst;
 
-		// cerr << endl;
-		// cerr << " new circuit: " << costSoFar << " tsp.BestCircuitValue " << tsp.BestCircuitValue;
-
-		if (costSoFar < tsp.BestCircuitValue) {
-			tsp.BestCircuitValue = costSoFar;
+		if ((circuitWeightSoFar + weightFromLastToFirst) < tsp.BestCircuitValue) {
 			tsp.BestCircuit = circuit;
+			tsp.BestCircuitValue = circuitWeightSoFar + weightFromLastToFirst;
 		}
-	} else {
-		Node lastNode = circuit.back();
+		return;
+	}
 
-		// cerr << endl;
-		// cerr << " lastNode: " << tsp.vname[lastNode];
-		
-		for (IncEdgeIt e(tsp.g, lastNode); e!=INVALID; ++e) {
-			Node ad = tsp.g.v(e);
-			if( ad == lastNode ){
-				ad = tsp.g.u(e);
-			}
-			if( !vector_contains(circuit, ad) ){
-				if ((costSoFar + tsp.weight[e]) < tsp.BestCircuitValue) {
-					// cerr << " | ad: " << tsp.vname[ad];
+	if(circuitWeightSoFar >= tsp.BestCircuitValue){
+		circuit.pop_back();
+		circuitWeightSoFar -= lastWeightAdded;
+		return;
+	}
 
-					circuit.push_back(ad);
-					costSoFar += tsp.weight[e];
-					tsp_bt(tsp, circuit, costSoFar, maxTime, beginExec, timedOut);
-					circuit.pop_back();
-					costSoFar -= tsp.weight[e];
-				}
-			}
+	Node lastNode = circuit.back();
+	for (IncEdgeIt e(tsp.g, lastNode); e!=INVALID; ++e) {
+		Node ad = tsp.g.v(e);
+		if( ad == lastNode ){
+			ad = tsp.g.u(e);
+		}
+		if( !vector_contains(circuit, ad) ){
+			circuit.push_back(ad);
+			circuitWeightSoFar += tsp.weight[e];
+			
+			tsp_bt(tsp, circuit, circuitWeightSoFar, tsp.weight[e], maxTime, beginExec, timedOut);
 		}
 	}
+
 
 // 1. n ← length[A] // number of elements in the array A
 // 2. if l = n
@@ -106,6 +119,9 @@ bool bt(TSP_Data &tsp, int maxTime)
  ******************************************************************************/
 {
 	clock_t beginExec = clock();
+
+	greedy(tsp, maxTime);
+
 	bool timedOut = false;
 
 	vector<Node> circuit = vector<Node>();
@@ -118,11 +134,11 @@ bool bt(TSP_Data &tsp, int maxTime)
 		}
 	}
 	circuit.push_back(firstNode);
-	double c = 0.0;
-	tsp_bt(tsp, circuit, c, maxTime, beginExec, timedOut);
+
+	double x = 0.0;
+	tsp_bt(tsp, circuit, x, 0.0, maxTime, beginExec, timedOut);
 
 	return !timedOut;
-
 }
 
 bool bnb(TSP_Data &tsp,  int maxTime)
