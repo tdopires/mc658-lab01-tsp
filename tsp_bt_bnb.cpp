@@ -126,13 +126,112 @@ bool bt(TSP_Data &tsp, int maxTime)
 	return !timedOut;
 }
 
+// Tree 
+class TreeNode {
+public:
+	Node graphNode;
+	vector<TreeNode> childTreeNodes;
+	double weightFromParentToThis;
+	//-------------------------------------------
+
+	TreeNode(Node gNode, double weight):
+		graphNode(gNode),
+		childTreeNodes(vector<TreeNode>()),
+		weightFromParentToThis(weight)
+	{
+	}
+};
+
+inline void addNode(TreeNode &tree, TreeNode childNode){return tree.childTreeNodes.push_back(childNode);}
+
+string indent(int depth) {
+	stringstream res;
+	for (int j = 0; j < depth; j++) {
+		res << "    ";
+	}
+	return res.str();
+}
+
+void depth_print(TSP_Data &tsp, TreeNode tree, int depth) {
+	cerr << endl;
+	cerr << indent(depth) << "( graphNode: " << tsp.vname[tree.graphNode]; 
+	cerr << indent(depth) << " | weightFromParentToThis: " << tree.weightFromParentToThis;
+	cerr << endl;
+	cerr << indent(depth) << " childTreeNodes: ";
+
+	for (auto i = tree.childTreeNodes.begin(); i != tree.childTreeNodes.end(); ++i) {
+		TreeNode treeNode = *i;
+		depth_print(tsp, treeNode, depth + 1);
+	}
+	cerr << indent(depth) << " ) ";
+}
+
+TreeNode build_tree(TSP_Data &tsp, Node node, double weightFromParentToThis, vector<Node> parents) {
+	TreeNode tree(node, weightFromParentToThis);
+
+	for (IncEdgeIt e(tsp.g, node); e!=INVALID; ++e) {
+		Node ad = tsp.g.v(e);
+		if( ad == node ){
+			ad = tsp.g.u(e);
+		}
+		
+		if ( !vector_contains(parents, ad) ) {
+			vector<Node> oldParents = parents;
+			parents.push_back(ad);
+			
+			TreeNode child = build_tree(tsp, ad, tsp.weight[e], parents);
+			addNode(tree, child);
+
+			parents = oldParents;
+		}
+	}
+	return tree;
+}
+
+void tsp_bnb(TSP_Data &tsp, Node firstNode, int maxTime, clock_t beginExec, bool &timedOut) {
+	// clock_t now = clock();
+	// double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
+	// if (elapsed_time > maxTime) {
+	// 	timedOut = true;
+	// 	return;
+	// }
+
+	vector<Node> parents = vector<Node>();
+	parents.push_back(firstNode);
+	TreeNode tree = build_tree(tsp, firstNode, 0.0, parents);
+
+	depth_print(tsp, tree, 0);
+
+}
+
 bool bnb(TSP_Data &tsp,  int maxTime)
 /*******************************************************************************
  * SUBSTITUIA O CONTEÚDO DESTE MÉTODO POR SUA IMPLEMENTAÇÃO DE BRANCH AND BOUND.
  * ENTRETANTO, NÃO ALTERE A ASSINATURA DO MÉTODO.
  ******************************************************************************/
 {
-	return greedy(tsp, maxTime);
+	clock_t beginExec = clock();
+
+	greedy(tsp, maxTime);
+
+	bool timedOut = false;
+
+	vector<Node> circuit = vector<Node>();
+	Node firstNode = INVALID;
+	string firstNodeStr = ""; 
+	for (NodeIt v(tsp.g); v!=INVALID; ++v) {
+		if (firstNodeStr.empty() || firstNodeStr > tsp.vname[v]) {
+			firstNodeStr = tsp.vname[v];
+			firstNode = v;
+		}
+	}
+	circuit.push_back(firstNode);
+
+	double x = 0.0;
+	tsp_bnb(tsp, firstNode, maxTime, beginExec, timedOut);
+
+	return !timedOut;
+
 }
 
 bool greedy(TSP_Data &tsp,  int maxTime)
