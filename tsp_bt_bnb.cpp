@@ -95,21 +95,6 @@ void tsp_bt(TSP_Data &tsp, vector<Node> circuit, double &circuitWeightSoFar, dou
 		}
 	}
 
-
-// 1. n ← length[A] // number of elements in the array A
-// 2. if l = n
-// 3.   then minCost ← min(minCost, lengthSoFar + distance[A[n], A[1]])
-// 4. else 
-	  //for i ← l + 1 to n do
-// 5.     Swap A[l + 1] and A[i] // select A[i] as the next city
-// 6.     newLength ← lengthSoFar + distance[A[l], A[l + 1]]
-// 7.     if newLength > minCost // this will never be a better solution
-// 8.       then skip // prune
-// 9.     else minCost ←
-// 10.      min(minCost, TSP Backtrack(A, l + 1, newLength, minCost))
-// 11.    Swap A[l + 1] and A[i] // undo the selection
-// 12.return minCost
-
 }
 
 bool bt(TSP_Data &tsp, int maxTime)
