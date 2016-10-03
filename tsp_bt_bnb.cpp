@@ -26,25 +26,6 @@ bool vector_contains(vector<Node> r, Node n) {
 	return false;
 }
 
-
-bool is_EdgeBoolMap_true(TSP_Data &tsp, EdgeBoolMap &x) {
-	for(EdgeIt o(tsp.g); o!=INVALID; ++o){
-		if (!x[o]) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool is_NodeBoolMap_true(TSP_Data &tsp, NodeBoolMap &y) {
-	for(NodeIt o(tsp.g); o!=INVALID; ++o){
-		if (!y[o]) {
-			return false;
-		}
-	}
-	return true;
-}
-
 void tsp_bt(TSP_Data &tsp, vector<Node> circuit, double &circuitWeightSoFar, double lastWeightAdded, int maxTime, clock_t beginExec, bool &timedOut) {
 	clock_t now = clock();
 	double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
@@ -126,23 +107,8 @@ bool bt(TSP_Data &tsp, int maxTime)
 	return !timedOut;
 }
 
-// Tree 
-class TreeNode {
-public:
-	Node graphNode;
-	vector<TreeNode> childTreeNodes;
-	double weightFromParentToThis;
-	//-------------------------------------------
 
-	TreeNode(Node gNode, double weight):
-		graphNode(gNode),
-		childTreeNodes(vector<TreeNode>()),
-		weightFromParentToThis(weight)
-	{
-	}
-};
-
-inline void addNode(TreeNode &tree, TreeNode childNode){return tree.childTreeNodes.push_back(childNode);}
+/************************************************************************************************************************************************************/
 
 string indent(int depth) {
 	stringstream res;
@@ -152,56 +118,223 @@ string indent(int depth) {
 	return res.str();
 }
 
-void depth_print(TSP_Data &tsp, TreeNode tree, int depth) {
-	cerr << endl;
-	cerr << indent(depth) << "( graphNode: " << tsp.vname[tree.graphNode]; 
-	cerr << indent(depth) << " | weightFromParentToThis: " << tree.weightFromParentToThis;
-	cerr << endl;
-	cerr << indent(depth) << " childTreeNodes: ";
-
-	for (auto i = tree.childTreeNodes.begin(); i != tree.childTreeNodes.end(); ++i) {
-		TreeNode treeNode = *i;
-		depth_print(tsp, treeNode, depth + 1);
+int find_set_index(vector<vector<Node>> sets, Node node) {
+	for (int i = 0; i < sets.size(); i++) {
+		for (int j = 0; j < sets[i].size(); j++) {
+			if (sets[i][j] == node) {
+				return i;
+			}
+		}
 	}
-	cerr << indent(depth) << " ) ";
+	return -1;
 }
 
-TreeNode build_tree(TSP_Data &tsp, Node node, double weightFromParentToThis, vector<Node> parents) {
-	TreeNode tree(node, weightFromParentToThis);
+bool isEdgeBoolMap_AllTrue(TSP_Data &tsp, EdgeBoolMap &x) {
+	for(EdgeIt e(tsp.g); e!=INVALID; ++e){
+		if (!x[e]) {
+			return false;
+		}
+	}
+	return true;
+}
 
+vector<Edge> orderEdgesByWeight(TSP_Data &tsp) {
+	vector<Edge> orderedEdges = vector<Edge>();
+
+	EdgeBoolMap x(tsp.g);
+	for(EdgeIt e(tsp.g); e!=INVALID; ++e){
+		x[e] = false;
+	}
+
+	while (!isEdgeBoolMap_AllTrue(tsp, x)) {
+		Edge minEdge;
+		double minWeight = DBL_MAX;
+		for(EdgeIt e(tsp.g); e!=INVALID; ++e){
+			if (tsp.weight[e] < minWeight && !x[e]) {
+				minWeight = tsp.weight[e];
+				minEdge = e;
+			}
+		}
+		x[minEdge] = true;
+		orderedEdges.push_back(minEdge);
+	}
+	return orderedEdges;
+}
+
+// Algoritmo de Kruskal
+double calculate_mst_weight(TSP_Data &tsp, vector<Node> nodesToIgnore, vector<Edge> orderedEdges, int maxTime, clock_t beginExec, bool &timedOut) {
+	double weight = 0.0;
+	vector<Edge> result = vector<Edge>();
+	vector<vector<Node>> sets = vector<vector<Node>>();
+	
+	for (NodeIt v(tsp.g); v!=INVALID; ++v) {
+		if ( vector_contains(nodesToIgnore, v) )
+			continue;
+
+		vector<Node> newset = vector<Node>();
+		newset.push_back(v);
+		sets.push_back(newset);
+
+		if (((double)((clock() - beginExec) / CLOCKS_PER_SEC)) > maxTime) {
+			timedOut = true;
+			return weight;
+		}
+	}
+
+	for (int i = 0; i < orderedEdges.size(); i++) {
+		Edge e = orderedEdges[i];
+		Node u = tsp.g.u(e);
+		Node v = tsp.g.v(e);
+		if ( vector_contains(nodesToIgnore, u) || vector_contains(nodesToIgnore, v) )
+			continue;
+
+		int u_index = find_set_index(sets, u);
+		int v_index = find_set_index(sets, v);
+		if ( u_index != v_index ) {
+			result.push_back(e);
+			weight += tsp.weight[e];
+
+			sets[u_index].insert(sets[u_index].end(), sets[v_index].begin(), sets[v_index].end());
+			sets[v_index] = vector<Node>();
+		}
+		if (((double)((clock() - beginExec) / CLOCKS_PER_SEC)) > maxTime) {
+			timedOut = true;
+			return weight;
+		}
+	}
+	
+	return weight;
+}
+
+double smallest_weight_on_edges(TSP_Data &tsp, Node node) {
+	double smallest_weight = DBL_MAX;
 	for (IncEdgeIt e(tsp.g, node); e!=INVALID; ++e) {
 		Node ad = tsp.g.v(e);
-		if( ad == node ){
+		if( ad == node ) {
 			ad = tsp.g.u(e);
 		}
-		
-		if ( !vector_contains(parents, ad) ) {
-			vector<Node> oldParents = parents;
-			parents.push_back(ad);
-			
-			TreeNode child = build_tree(tsp, ad, tsp.weight[e], parents);
-			addNode(tree, child);
 
-			parents = oldParents;
+		if (tsp.weight[e] < smallest_weight) {
+			smallest_weight = tsp.weight[e];
 		}
 	}
-	return tree;
+	return smallest_weight;
+}
+double smallest_weight_on_edges_excluding(TSP_Data &tsp, Node node, Node toExclude) {
+	double smallest_weight = DBL_MAX;
+	for (IncEdgeIt e(tsp.g, node); e!=INVALID; ++e) {
+		Node ad = tsp.g.v(e);
+		if( ad == node ) {
+			ad = tsp.g.u(e);
+		}
+		if (ad == toExclude) {
+			continue;
+		}
+
+		if (tsp.weight[e] < smallest_weight) {
+			smallest_weight = tsp.weight[e];
+		}
+	}
+	return smallest_weight;
 }
 
-void tsp_bnb(TSP_Data &tsp, Node firstNode, int maxTime, clock_t beginExec, bool &timedOut) {
-	// clock_t now = clock();
-	// double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
-	// if (elapsed_time > maxTime) {
-	// 	timedOut = true;
-	// 	return;
-	// }
+double calculate_weight_between_circuit_and_rest(TSP_Data &tsp, vector<Node> circuit) {
+	if ((int)circuit.size() == 1) {
+		Node firstNode = circuit[0];
+		return smallest_weight_on_edges(tsp, firstNode);
+	}
 
-	vector<Node> parents = vector<Node>();
-	parents.push_back(firstNode);
-	TreeNode tree = build_tree(tsp, firstNode, 0.0, parents);
+	Node firstNode = circuit[0];
+	Node secondNode = circuit[1];
+	double w1 = smallest_weight_on_edges_excluding(tsp, firstNode, secondNode);
 
-	depth_print(tsp, tree, 0);
+	Node beforeLastNode = circuit[((int)circuit.size())-2];
+	Node lastNode = circuit[((int)circuit.size())-1];
+	double w2 = smallest_weight_on_edges_excluding(tsp, beforeLastNode, lastNode);
+	return w1 + w2;
 
+}
+
+
+void tsp_bnb(TSP_Data &tsp, vector<Edge> orderedEdges, double weightSoFar, Node node, vector<Node> circuit, int depth, int maxTime, clock_t beginExec, bool &timedOut) {
+	clock_t now = clock();
+	double elapsed_time = (double) (now-beginExec) / CLOCKS_PER_SEC;
+	if (elapsed_time > maxTime) {
+		timedOut = true;
+		return;
+	}
+	
+	if ((int)circuit.size() == tsp.NNodes ) { // is a leaf and we have a circuit
+		double weightFromLastToFirst = 666666.6;
+
+		Node lastNode = circuit.back();
+		Node firstNode = circuit.front();
+		for (IncEdgeIt e(tsp.g, lastNode); e!=INVALID; ++e) {
+			Node ad = tsp.g.v(e);
+			if( ad == lastNode ){
+				ad = tsp.g.u(e);
+			}
+			if(ad == firstNode ){
+				weightFromLastToFirst = tsp.weight[e];
+			}
+		}
+
+		if ((weightSoFar + weightFromLastToFirst) <= tsp.BestCircuitValue) {
+			// cerr << endl;
+			// cerr << indent(depth) << "( graphNode: " << tsp.vname[node]; 
+			// cerr << " || weightSoFar: " << weightSoFar;
+			// cerr << " || weightFromLastToFirst: " << weightFromLastToFirst;
+			// cerr << " =====> NEW BEST CIRCUIT VALUE: " << (weightSoFar + weightFromLastToFirst) << " ) ";
+
+			tsp.BestCircuit = circuit;
+			tsp.BestCircuitValue = weightSoFar + weightFromLastToFirst;
+		}
+
+	} else {
+		// cerr << endl;
+		// cerr << indent(depth) << "( node: " << tsp.vname[node]; 
+		// cerr << " || weightSoFar: " << weightSoFar;
+		// cerr << endl;
+
+
+		for (IncEdgeIt e(tsp.g, node); e!=INVALID; ++e) {
+			Node ad = tsp.g.v(e);
+			if( ad == node ){
+				ad = tsp.g.u(e);
+			}
+
+			if ( !vector_contains(circuit, ad) ) {
+
+				vector<Node> oldCircuit = circuit;
+				circuit.push_back(ad);
+
+				double weightChildMst = calculate_mst_weight(tsp, circuit, orderedEdges, maxTime, beginExec, timedOut);
+
+				double weightcircuitBetweenRest = calculate_weight_between_circuit_and_rest(tsp, circuit);
+
+				// cerr << endl;
+				// cerr << indent(depth) << " => going to node: " << tsp.vname[ad] << " mst do resto " << weightChildMst; 
+				
+				double newWeightSoFar = weightSoFar + tsp.weight[e];
+
+				if ( (newWeightSoFar + weightChildMst + weightcircuitBetweenRest) < tsp.BestCircuitValue ) {
+
+					tsp_bnb(tsp, orderedEdges, newWeightSoFar, ad, circuit, depth + 1, maxTime, beginExec, timedOut);
+
+				}
+
+				circuit = oldCircuit;
+			}
+
+			if (((double)((clock() - beginExec) / CLOCKS_PER_SEC)) > maxTime) {
+				timedOut = true;
+				return;
+			}
+		}
+
+		// cerr << " ) ";
+
+	}
 }
 
 bool bnb(TSP_Data &tsp,  int maxTime)
@@ -216,7 +349,6 @@ bool bnb(TSP_Data &tsp,  int maxTime)
 
 	bool timedOut = false;
 
-	vector<Node> circuit = vector<Node>();
 	Node firstNode = INVALID;
 	string firstNodeStr = ""; 
 	for (NodeIt v(tsp.g); v!=INVALID; ++v) {
@@ -225,10 +357,12 @@ bool bnb(TSP_Data &tsp,  int maxTime)
 			firstNode = v;
 		}
 	}
+
+	vector<Node> circuit = vector<Node>();
 	circuit.push_back(firstNode);
 
-	double x = 0.0;
-	tsp_bnb(tsp, firstNode, maxTime, beginExec, timedOut);
+	vector<Edge> orderedEdges = orderEdgesByWeight(tsp);
+	tsp_bnb(tsp, orderedEdges, 0.0, firstNode, circuit, 0, maxTime, beginExec, timedOut);
 
 	return !timedOut;
 
